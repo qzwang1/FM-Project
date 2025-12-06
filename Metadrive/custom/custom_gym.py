@@ -81,55 +81,43 @@ class CustomMetaDriveEnv(gym.Env):
     def _make_run_loop(self):
         while True:
             try:
-                # 1. 为这个 episode 采样一个 Scenic 场景
                 scene = self.get_scene()
-
-                # 2. 创建一次新的 simulation（MetaDriveSimulation）
                 with self.simulator.simulateStepped(scene, maxSteps=self.max_steps) as simulation:
                     steps_taken = 0
 
-                    # --- reset 的第一次产出：只给 obs / info，不给 reward ---
                     observation = simulation.get_obs()
                     info = simulation.get_info()
                     actions = yield observation, info
                     simulation.actions = actions
 
-                    # ---------- 主循环：每一个 env.step() 在这里 ----------
                     while True:
-                        # 让底层仿真往前走一步
+
                         simulation.advance()
                         steps_taken += 1
 
-                        # 取新的观测 + 信息 + reward
+
                         observation = simulation.get_obs()
                         info = simulation.get_info()
                         reward = simulation.get_reward()
 
-                        # ====== 我们自己的终止条件 ======
-                        terminated = False   # 真正任务结束（比如 crash / 出路 / 完成本关）
-                        truncated = False    # 被强制截断（比如时间步用完）
+                        terminated = False  
+                        truncated = False  
 
-                        # 1) 提前终止：MetaDriveSimulation 设的 early_terminate
                         if simulation.get_truncation():
                             terminated = True
 
-                        # 2) 时间步到上限（防止死循环）
                         if steps_taken >= self.max_steps:
                             truncated = True
 
-                        # ====== 把终止信号传回给 SB3 / Monitor / Callback ======
                         if terminated or truncated:
-                            # 最后一步也要返回一次（带 done=True），让 SB3 记完这一集
                             yield observation, reward, terminated, truncated, info
-                            break  # 跳出 while，开始下一集（下一个 scene）
+                            break  
 
-                        # 没结束，正常继续
+                       
                         actions = yield observation, reward, False, False, info
                         simulation.actions = actions
 
             except ResetException:
-                # 外部 reset() 会往这个 generator 里 throw ResetException
-                # 在这里简单重新开始新的一集即可
                 continue
 
 
@@ -212,13 +200,6 @@ class CustomMetaDriveEnv(gym.Env):
         self.use_verifai = bool(flag)
 
     def get_scene(self):
-        """每个 episode 开头，从 Scenic 采样一个新 scene。
-
-        - use_verifai == False 或 feedback_result 为 None：
-            走 scenario.generate()，不传 feedback ⇒ 纯 random
-        - use_verifai == True 且 feedback_result 不为 None：
-            走 scenario.generate(feedback=...) ⇒ CE/BO sampler 用 feedback 优化采样
-        """
         scenario = self.scenario
         if isinstance(scenario, list):
             scenario = random.choice(scenario)

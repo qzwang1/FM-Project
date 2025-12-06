@@ -4,7 +4,7 @@ param carla_map = 'Town01'
 model scenic.simulators.metadrive.model
 
 param time_step = 1.0 / 10
-param verifaiSamplerType = 'ce'
+param verifaiSamplerType = 'random'
 param render = 0
 param use2DMap = True
 

@@ -41,14 +41,14 @@ import scenic.simulators.metadrive.utils as utils
 class CustomMetaDriveSimulator(DrivingSimulator):
     """Implementation of `Simulator` for MetaDrive."""
 
-    def __init__(self,timestep=0.1,render=True,render3D=False,sumo_map=None,real_time=True,max_steps=1000):
+    def __init__(self,timestep=0.1,render=False,render3D=False,sumo_map=None,real_time=True,max_steps=1000):
         super().__init__()
-        self.render = render
-        self.render3D = render3D if render else False
+        self.render = False
+        self.render3D = False
         self.scenario_number = 0
         self.timestep = timestep
         self.sumo_map = sumo_map
-        self.real_time = real_time
+        self.real_time = False
         self.scenic_offset, self.sumo_map_boundary = utils.getMapParameters(self.sumo_map)
         if self.render and not self.render3D:
             self.film_size = utils.calculateFilmSize(self.sumo_map_boundary, scaling=5)
@@ -102,8 +102,8 @@ class CustomMetaDriveSimulation(DrivingSimulation):
                 "The first object must be a car to serve as the ego vehicle in Metadrive."
             )
 
-        self.render = render
-        self.render3D = render3D
+        self.render = False
+        self.render3D = False
         self.scenario_number = scenario_number
         self.defined_ego = False
         self.client = None
@@ -119,7 +119,7 @@ class CustomMetaDriveSimulation(DrivingSimulation):
         self.max_steps = max_steps
         self.steps_taken = 0
         self.rewards = []
-        self.episode_collision = 0      # 这一局是否发生过碰撞（0/1）
+        self.episode_collision = 0    
         self.episode_coverage = 0.0 
         self.result = None
         super().__init__(scene, timestep=timestep, **kwargs)
@@ -147,7 +147,7 @@ class CustomMetaDriveSimulation(DrivingSimulation):
                 dict(
                     decision_repeat=decision_repeat,
                     physics_world_step_size=physics_world_step_size,
-                    use_render=self.render3D,
+                    use_render=False,
                     vehicle_config={
                         "spawn_position_heading": [
                             converted_position,
@@ -155,7 +155,7 @@ class CustomMetaDriveSimulation(DrivingSimulation):
                         ],
                         "image_source":"semnatic_camera",  
                     },
-                    use_mesh_terrain=self.render3D,
+                    use_mesh_terrain=False,
                     log_level=logging.CRITICAL,
                     sensors={"semantic_camera": (SemanticCamera, *sensor_size)},
                     stack_size=1,
@@ -375,15 +375,6 @@ class CustomMetaDriveSimulation(DrivingSimulation):
         return reward
     
     def get_info(self):
-        """
-        返回给 Gym / RL 的 info：
-          - crash: 本步是否发生碰撞（保留原字段，方便调试）
-          - cte: 当前 cross-track error
-          - road_deviation: Scenic 里记录的 roadDeviation
-          - collision: 本 episode 是否发生过碰撞（0/1），给 callback 用
-          - coverage_step: 本步的 coverage 增量（这里用 |cte|）
-          - coverage_total: 当前 episode 累计的 coverage
-        """
         state = self.client.vehicle.get_state()
 
         keys = ['crash_object', 'crash_vehicle', 'crash_building', 'crash_sidewalk']
@@ -391,25 +382,21 @@ class CustomMetaDriveSimulation(DrivingSimulation):
 
         info = {}
 
-        # 原来就有的字段，先保留
         info['crash'] = crashed
         info['cte'] = self.scene.objects[0].cte
         info["road_deviation"] = self.scene.objects[0].roadDeviation
 
-        # ---------- episode 级碰撞统计 ----------
         if crashed and self.episode_collision == 0:
-            # 这一局第一次发生碰撞，就标记为 1
             self.episode_collision = 1
+
         info["collision"] = self.episode_collision   # 0 or 1
 
-        # ---------- coverage 统计 ----------
-        # 用 |cte| 作“这一小步的偏离程度”
         cte = float(self.scene.objects[0].cte)
         step_cov = abs(cte)
         self.episode_coverage += step_cov
 
-        info["coverage_step"] = step_cov              # 本 step 的 coverage 增量
-        info["coverage_total"] = self.episode_coverage  # 当前 episode 累计 coverage
+        info["coverage_step"] = step_cov         
+        info["coverage_total"] = self.episode_coverage  
 
         return info
 
