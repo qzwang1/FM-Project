@@ -5,6 +5,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+# -------------------------------------------------------------------
+# Optional: 更好看的风格（建议）
+plt.style.use("seaborn-v0_8-whitegrid")
+# -------------------------------------------------------------------
+
 RESULTS_DIR = "./eval_results"  
 
 csv_files = glob.glob(os.path.join(RESULTS_DIR, "eval_*.csv"))
@@ -24,12 +29,12 @@ for path in csv_files:
 
 all_df = pd.concat(dfs, ignore_index=True)
 
-
+# 验证列
 for col in ["reward", "collision", "coverage", "length"]:
     if col not in all_df.columns:
         raise KeyError(f"Column '{col}' not found in CSV files.")
 
-
+# Summary
 summary = (
     all_df.groupby("model")
     .agg(
@@ -46,56 +51,77 @@ print("Summary:")
 print(summary)
 
 models = summary["model"].tolist()
-
-
-plt.figure(figsize=(6, 4))
-y = summary["reward_mean"].values
-yerr = summary["reward_std"].values
 x = np.arange(len(models))
+bar_width = 0.35  # 更细的柱子
 
-plt.bar(x, y, yerr=yerr, capsize=5)
+# -------------------------------------------------------------------
+# Plot 1: Reward
+# -------------------------------------------------------------------
+plt.figure(figsize=(6, 4))
+plt.bar(
+    x,
+    summary["reward_mean"].values,
+    yerr=summary["reward_std"].values,
+    width=bar_width,
+    capsize=5,
+    edgecolor="black",
+)
 plt.xticks(x, models)
 plt.ylabel("Mean Reward")
 plt.title("Mean Episode Reward by Model")
+plt.grid(axis="y", linestyle="--", alpha=0.5)
 plt.tight_layout()
 plt.savefig(os.path.join(RESULTS_DIR, "reward_by_model.png"), dpi=200)
-# plt.show()
 
-
+# -------------------------------------------------------------------
+# Plot 2: Collision Rate
+# -------------------------------------------------------------------
 plt.figure(figsize=(6, 4))
-y = summary["collision_rate"].values
-x = np.arange(len(models))
-
-plt.bar(x, y)
+plt.bar(
+    x,
+    summary["collision_rate"].values,
+    width=bar_width,
+    edgecolor="black",
+)
 plt.xticks(x, models)
 plt.ylabel("Collision Rate")
 plt.title("Collision Rate by Model")
+plt.grid(axis="y", linestyle="--", alpha=0.5)
 plt.tight_layout()
 plt.savefig(os.path.join(RESULTS_DIR, "collision_rate_by_model.png"), dpi=200)
-# plt.show()
 
-
+# -------------------------------------------------------------------
+# Plot 3: Coverage
+# -------------------------------------------------------------------
 plt.figure(figsize=(6, 4))
-y = summary["coverage_mean"].values
-x = np.arange(len(models))
-
-plt.bar(x, y)
+plt.bar(
+    x,
+    summary["coverage_mean"].values,
+    width=bar_width,
+    edgecolor="black",
+)
 plt.xticks(x, models)
 plt.ylabel("Mean Coverage (lower is better)")
 plt.title("Mean Coverage by Model")
+plt.grid(axis="y", linestyle="--", alpha=0.5)
 plt.tight_layout()
 plt.savefig(os.path.join(RESULTS_DIR, "coverage_by_model.png"), dpi=200)
-# plt.show()
 
-
+# -------------------------------------------------------------------
+# Plot 4: Episode Length
+# -------------------------------------------------------------------
 plt.figure(figsize=(6, 4))
-y = summary["length_mean"].values
-x = np.arange(len(models))
-
-plt.bar(x, y)
+plt.bar(
+    x,
+    summary["length_mean"].values,
+    width=bar_width,
+    edgecolor="black",
+)
 plt.xticks(x, models)
 plt.ylabel("Mean Episode Length")
 plt.title("Mean Episode Length by Model")
+plt.grid(axis="y", linestyle="--", alpha=0.5)
 plt.tight_layout()
 plt.savefig(os.path.join(RESULTS_DIR, "length_by_model.png"), dpi=200)
-# plt.show()
+
+print("\nAll plots saved to", RESULTS_DIR)
